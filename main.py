@@ -5,7 +5,7 @@ import os
 import asyncpg
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramAPIError
-from aiogram.filters import Command, ChatMemberUpdatedFilter, JOIN_TRANSITION, LEAVE_TRANSITION
+from aiogram.filters import Command
 from aiogram.types import ChatMemberUpdated
 from dotenv import load_dotenv
 
@@ -216,18 +216,9 @@ async def manual_check(message: types.Message):
 
 
 # Обработка добавления участника
-@dp.chat_member(ChatMemberUpdatedFilter(JOIN_TRANSITION))
-async def on_user_join(event: ChatMemberUpdated):
-    await add_user_to_db(event.new_chat_member.user.id, event.new_chat_member.user.username,
-                         event.new_chat_member.user.full_name, event.chat.id)
-    logger.info(f"User {event.new_chat_member.user.full_name} added to chat {event.chat.id}")
 
 
 # Обработка удаления участника
-@dp.chat_member(ChatMemberUpdatedFilter(LEAVE_TRANSITION))
-async def on_user_leave(event: ChatMemberUpdated):
-    await remove_user_from_db(event.new_chat_member.user.id, event.chat.id)
-    logger.info(f"User {event.new_chat_member.user.full_name} removed from chat {event.chat.id}")
 
 
 @dp.message()
