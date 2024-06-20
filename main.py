@@ -66,11 +66,6 @@ async def periodic_check(chat_id: int, admin: types.User):
         await asyncio.sleep(CHECK_INTERVAL)
 
 
-@dp.message(Command("dice"))
-async def cmd_dice(message: types.Message):
-    await message.answer_dice(emoji="🎲")
-
-
 # Обработчик команды /start
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
@@ -103,7 +98,9 @@ async def start_cmd(message: types.Message):
                     REPORT_RECIPIENTS.add((message.from_user.id, message.chat.id))
                     await message.reply(
                         f"Бот запущен и будет проверять пользователей каждые {CHECK_INTERVAL // 60} минут.\n\n"
-                        f"Отчёты будет направлены @{message.from_user.username}")
+                        f"Отчёты будет направлены @{message.from_user.username}\n\n"
+                        f"Если хотите выполнить проверку прямо сейчас, введите команду:\n"
+                        f"/check@{bot_info.username}")
                     logger.debug("Successful group /start")
                     # Запускаем периодическую проверку
                     asyncio.create_task(periodic_check(message.chat.id, message.from_user))
@@ -139,8 +136,12 @@ async def manual_check(message: types.Message):
             if bot_info.username not in message.text:
                 logger.debug("Command without bot username. Ignoring it.")
                 return
-            await check_users_in_chat(message.chat.id, message.from_user)
-            await message.reply("Проверка завершена.")
+            if (message.from_user.id, message.chat.id) in REPORT_RECIPIENTS:
+                await check_users_in_chat(message.chat.id, message.from_user)
+                await message.reply("Проверка завершена.")
+            else:
+                await message.reply(f"Вас нет в списке получателей отчётов.\n\n Чтобы это исправить,"
+                                    f" выполните команду:\n/start@{bot_info.username}")
         else:
             await message.reply("Запустить проверку может только администратор")
 
