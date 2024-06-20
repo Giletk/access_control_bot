@@ -13,7 +13,7 @@ from handlers import router as main_router
 load_dotenv()
 API_TOKEN = os.getenv('bot_token')
 
-CHECK_INTERVAL = 60  # Время в секундах
+CHECK_INTERVAL = 60  # Время между проверками пользователей в секундах
 
 file_log = logging.FileHandler("bot.log")
 stdout_log = logging.StreamHandler()
@@ -39,6 +39,7 @@ async def load_allowed_usernames():
 
 # Функция проверки доступа пользователей в чате
 async def check_users_in_chat(chat_id: int, admin: types.User):
+    await load_allowed_usernames()
     logger.info(f"Проверка участников группы с id={chat_id}")
     try:
         members = await get_current_users(chat_id)
@@ -127,10 +128,13 @@ async def manual_check(message: types.Message):
 # Главная функция
 async def main():
     await create_tables()
-    await load_allowed_usernames()
+
+    # Пропускаем все накопленные входящие
+    await bot.delete_webhook(drop_pending_updates=True)
+    # Запускаем бота
     await dp.start_polling(bot,
                            allowed_updates=["message", "chat_member"])
-    logger.info("Tables created and bot started.")
+    logger.info("bot started")
 
 
 if __name__ == "__main__":
