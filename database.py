@@ -18,11 +18,11 @@ logger.debug(f"Loaded env variables for db connection: {DB_HOST}:{DB_PORT} user 
 
 # Декоратор для отлова ошибок
 def logging_exceptions(function):
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         try:
-            return function(*args, **kwargs)
+            return await function(*args, **kwargs)
         except Exception as e:
-            logger.error(f"Failed launch {function.__name__} with {args}, {kwargs}: {e}", exc_info=True)
+            logger.error(f"Failed to launch {function.__name__} with {args}, {kwargs}: {e}", exc_info=True)
 
     return wrapper
 
@@ -58,8 +58,13 @@ async def create_tables():
             username TEXT NOT NULL UNIQUE
         )
     """)
+    # Создание уникального индекса
+    await conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS users_user_id_chat_id_idx 
+        ON users (user_id, chat_id)
+    """)
     await conn.close()
-    logger.info("Tables created")
+    logger.info("Tables and index created")
 
 
 # Получение списка разрешённых пользователей из базы данных
@@ -76,13 +81,13 @@ async def get_allowed_usernames():
 
 # Получение списка пользователей в группе из базы данных
 @logging_exceptions
-async def get_current_usernames(chat_id: int):
+async def get_current_users(chat_id: int):
     logger.info("Getting current username list from DB")
     conn = await get_db_connection()
-    rows = await conn.fetch(f"SELECT username FROM users WHERE chat_id={chat_id}")
+    rows = await conn.fetch(f"SELECT username, full_name FROM users WHERE chat_id={chat_id}")
     await conn.close()
-    result = [row['username'] for row in rows]
-    logger.debug(f"Extracted current usernames: {result}")
+    result = rows
+    logger.debug(f"Extracted current users: {result}")
     return result
 
 
