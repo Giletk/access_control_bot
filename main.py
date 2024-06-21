@@ -19,7 +19,7 @@ file_log = logging.FileHandler("bot.log")
 stdout_log = logging.StreamHandler()
 logging.basicConfig(
     handlers=(file_log, stdout_log),
-    level=logging.DEBUG,
+    level=logging.INFO,
     format=' %(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s',
     encoding="utf-8")
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ async def start_cmd(message: types.Message):
     logger.debug(f"Chat type: {chat_type}")
     if chat_type == "private":
         await message.answer(
-            f"Добавьте меня в группу, сделайте админом и отправьте в ней команду:\n/start@{bot_info.username}\n\n"
+            f"Добавьте бота в группу, сделайте админом и отправьте в ней команду:\n/start@{bot_info.username}\n\n"
             f"Отчёты проверок будут направлены администратору, запустившему бота.")
     else:
         # В группе бот будет обращать внимание только на команды с его никнеймом через пробел
@@ -94,7 +94,7 @@ async def start_cmd(message: types.Message):
                 await message.reply("Бот может быть запущен только администратором группы")
                 logger.debug("Non-admin tried to start the bot inside a group")
             else:
-                if (message.from_user.id, message.chat.id) in REPORT_RECIPIENTS:
+                if (message.from_user.id, message.chat.id) not in REPORT_RECIPIENTS:
                     REPORT_RECIPIENTS.add((message.from_user.id, message.chat.id))
                     await message.reply(
                         f"Бот запущен и будет проверять пользователей каждые {CHECK_INTERVAL // 60} минут.\n\n"
@@ -127,15 +127,26 @@ async def manual_check(message: types.Message):
                              f"Используйте команду:\n"
                              f"/check@{bot_info.username}")
     else:
+        # В группе бот будет обращать внимание только на команды с его никнеймом через пробел
+        if bot_info.username not in message.text:
+            logger.debug("Command without bot username. Ignoring it.")
+            return
         # Проверяем админку бота
         bot_member_type = await bot.get_chat_member(message.chat.id, bot.id)
+        sender_member_type = await bot.get_chat_member(message.chat.id, message.from_user.id)
         logger.debug(f"bot member type: {type(bot_member_type)}")
         logger.debug(f"Group chat_id: {message.chat.id}")
+        if not isinstance(sender_member_type, types.ChatMemberAdministrator) \
+                and not isinstance(sender_member_type, types.ChatMemberOwner):
+            await message.reply("Запустить проверку может только администратор")
+            return
+
         if isinstance(bot_member_type, types.ChatMemberAdministrator):
             # В группе бот будет обращать внимание только на команды с его никнеймом через пробел
             if bot_info.username not in message.text:
                 logger.debug("Command without bot username. Ignoring it.")
                 return
+            print((message.from_user.id, message.chat.id), REPORT_RECIPIENTS)
             if (message.from_user.id, message.chat.id) in REPORT_RECIPIENTS:
                 await check_users_in_chat(message.chat.id, message.from_user)
                 await message.reply("Проверка завершена.")
@@ -143,7 +154,7 @@ async def manual_check(message: types.Message):
                 await message.reply(f"Вас нет в списке получателей отчётов.\n\n Чтобы это исправить,"
                                     f" выполните команду:\n/start@{bot_info.username}")
         else:
-            await message.reply("Запустить проверку может только администратор")
+            await message.reply("Боту нужны права администратора")
 
 
 # Главная функция
